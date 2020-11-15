@@ -3,14 +3,24 @@
 #include <AsyncTCP.h>
 #include <SPIFFS.h>
 #include <ESPAsyncWebServer.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <Adafruit_I2CDevice.h>
+#include <SPI.h>
+#include <Wire.h>
 
 AsyncWebServer server(80);
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 // REPLACE WITH YOUR NETWORK CREDENTIALS
 const char* ssid="helix_88";
 const char* password="maison88-2020";
 
+
 const char* PARAM_NOMAQUARIUM = "nomAquarium";
+String inputMessage;
 
 // HTML web page to handle 3 input fields (inputString, inputInt, inputFloat)
 const char index_html[] PROGMEM = R"rawliteral(
@@ -113,7 +123,6 @@ void setup() {
 
   // Send a GET request to <ESP_IP>/get?inputString=<inputMessage>
   server.on("/get", HTTP_GET, [] (AsyncWebServerRequest *request) {
-    String inputMessage;
     // GET inputString value on <ESP_IP>/get?inputString=<inputMessage>
     if (request->hasParam(PARAM_NOMAQUARIUM)) {
       inputMessage = request->getParam(PARAM_NOMAQUARIUM)->value();
@@ -129,11 +138,32 @@ void setup() {
   server.begin();
 }
 
+void Oled()
+{
+
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;);
+  }
+  
+  String nomAquarium = readFile(SPIFFS, "/nomAquarium.txt");
+
+  delay(2000);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0, 0);
+  display.println(nomAquarium);
+  display.print("IP: ");
+  display.print(WiFi.localIP());
+  display.display();
+}
+
 void loop() {
   // To access your stored values on inputString, inputInt, inputFloat
   String yourInputString = readFile(SPIFFS, "/nomAquarium.txt");
   Serial.print("*** Your nomAquarium: ");
   Serial.println(yourInputString);
-
+  Oled();
   delay(5000);
 }
