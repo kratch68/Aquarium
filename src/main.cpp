@@ -8,11 +8,19 @@
 #include <Adafruit_I2CDevice.h>
 #include <SPI.h>
 #include <Wire.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
 
 AsyncWebServer server(80);
+
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+#define WATER_TEMP_PIN 15
+OneWire oneWire(WATER_TEMP_PIN); 
+DallasTemperature sensors(&oneWire);
 
 // REPLACE WITH YOUR NETWORK CREDENTIALS
 const char* ssid="helix_88";
@@ -20,7 +28,8 @@ const char* password="maison88-2020";
 
 
 const char* PARAM_NOMAQUARIUM = "nomAquarium";
-String inputMessage;
+const char* PARAM_TEMPMIN = "tempMin";
+const char* PARAM_TEMPMAX = "tempMax";
 
 // HTML web page to handle 3 input fields (inputString, inputInt, inputFloat)
 const char index_html[] PROGMEM = R"rawliteral(
@@ -43,17 +52,32 @@ const char index_html[] PROGMEM = R"rawliteral(
         </div>
     </header>
 	<body>
-        <main class="w3-light-grey" style="width: 100%; height: 350px; display: flex;">
-            <div style="width: 50%; text-align: center;">
-                <form action="/get" target="hidden-form">
-                    <h1>Modifier le nom : %nomAquarium% </h1>
-                    <input class='w3-input w3-round-large' type='text' name="nomAquarium" style="width: 50%; margin: auto;" placeholder='Nom aquarium'>
+        <main class="haut w3-light-grey" style="width: 1920px; height: 150px;">
+            <div style="width: 800px; text-align: center; margin: auto;">
+            <h1>Modifier le nom : %nomAquarium% </h1>
+                <form action="/get" target="hidden-form" style="display: flex;">
+                    <input class='w3-input w3-round-large' type='text' name="nomAquarium" style="width: 500px; margin: auto;" placeholder="Nom aquarium">
                     <button onclick="submitMessage()" type="submit" value="Submit" class='w3-btn w3-white w3-border w3-round-large'>Modifier</button>
                 </form>
             </div>
         </main>
+        <main class="bas w3-light-grey" style="width: 1920px; height: 350px;">
+          <div style="width: 900px; text-align: center; margin: auto;">
+            <h1>Temperature : %tempMin% </h1>
+            <form action="/get" target="hidden-form" style="display: flex;">
+              Temperature mini : %tempMin% °C :<input class='w3-input w3-round-large' type='number' name="tempMin" style="width: 500px; margin: auto;">
+              <button onclick="submitMessage()" type="submit" value="Submit" class='w3-btn w3-white w3-border w3-round-large'>Sauvegarder</button>
+            </form>
+            <form action="/get" target="hidden-form" style="display: flex;">
+              Temperature max : %tempMax% °C :<input class='w3-input w3-round-large' type='number' name="tempMax" style="width: 500px; margin: auto;">
+              <button onclick="submitMessage()" type="submit" value="Submit" class='w3-btn w3-white w3-border w3-round-large'>Sauvegarder</button>
+            </form>
+          </div>
+        </main>
+        <iframe style="display:none" name="hidden-form"></iframe>
     </body>
-</html>)rawliteral";
+</html>
+)rawliteral";
 
 void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "Not found");
@@ -95,6 +119,12 @@ String processor(const String& var){
   if(var == "nomAquarium"){
     return readFile(SPIFFS, "/nomAquarium.txt");
   }
+  else if(var == "tempMin"){
+    return readFile(SPIFFS, "/tempMin.txt");
+  }
+  else if(var == "tempMax"){
+    return readFile(SPIFFS, "/tempMax.txt");
+  }
   return String();
 }
 
@@ -124,9 +154,18 @@ void setup() {
   // Send a GET request to <ESP_IP>/get?inputString=<inputMessage>
   server.on("/get", HTTP_GET, [] (AsyncWebServerRequest *request) {
     // GET inputString value on <ESP_IP>/get?inputString=<inputMessage>
+    String inputMessage;
     if (request->hasParam(PARAM_NOMAQUARIUM)) {
       inputMessage = request->getParam(PARAM_NOMAQUARIUM)->value();
       writeFile(SPIFFS, "/nomAquarium.txt", inputMessage.c_str());
+    }
+    else if (request->hasParam(PARAM_TEMPMIN)) {
+      inputMessage = request->getParam(PARAM_TEMPMIN)->value();
+      writeFile(SPIFFS, "/tempMin.txt", inputMessage.c_str());
+    }
+    else if (request->hasParam(PARAM_TEMPMAX)) {
+      inputMessage = request->getParam(PARAM_TEMPMAX)->value();
+      writeFile(SPIFFS, "/tempMax.txt", inputMessage.c_str());
     }
     else {
       inputMessage = "No message sent";
@@ -138,6 +177,15 @@ void setup() {
   server.begin();
 }
 
+double getTemperature()
+{
+  sensors.requestTemperatures();
+  double temperatureActuelle = sensors.getTempCByIndex(0);
+  return temperatureActuelle;
+
+  delay(1000);
+}
+
 void Oled()
 {
 
@@ -147,6 +195,9 @@ void Oled()
   }
   
   String nomAquarium = readFile(SPIFFS, "/nomAquarium.txt");
+  int tempMin = readFile(SPIFFS, "/tempMin.txt").toInt();
+  int tempMax = readFile(SPIFFS, "/tempMax.txt").toInt();
+  double temperatureActuelle = getTemperature();
 
   delay(2000);
   display.clearDisplay();
@@ -155,15 +206,32 @@ void Oled()
   display.setCursor(0, 0);
   display.println(nomAquarium);
   display.print("IP: ");
-  display.print(WiFi.localIP());
+  display.println(WiFi.localIP());
+  display.print("Temperature: ");
+  display.println(temperatureActuelle);
+  display.print("Min: ");
+  display.print(tempMin);
+  display.print("   Max: ");
+  display.print(tempMax);
   display.display();
 }
 
 void loop() {
-  // To access your stored values on inputString, inputInt, inputFloat
-  String yourInputString = readFile(SPIFFS, "/nomAquarium.txt");
-  Serial.print("*** Your nomAquarium: ");
-  Serial.println(yourInputString);
+  String nomAquarium = readFile(SPIFFS, "/nomAquarium.txt");
+  int tempMin = readFile(SPIFFS, "/tempMin.txt").toInt();
+  int tempMax = readFile(SPIFFS, "/tempMax.txt").toInt();
+  double temperatureActuelle = getTemperature();
+  Serial.print("Nom de l'aquarium: ");
+  Serial.println(nomAquarium);
+  Serial.print("Temperature de l'eau: ");
+  Serial.print(temperatureActuelle);
+  Serial.println("°C");
+  Serial.print("Temperature Min: ");
+  Serial.print(tempMin);
+  Serial.println("°C");
+  Serial.print("Temperature Max: ");
+  Serial.print(tempMax);
+  Serial.println("°C");
   Oled();
-  delay(5000);
+  delay(2000);
 }
