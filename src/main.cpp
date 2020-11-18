@@ -22,6 +22,9 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 OneWire oneWire(WATER_TEMP_PIN); 
 DallasTemperature sensors(&oneWire);
 
+//Led sur la pin 2 de l'esp
+const int ledChauffage = 2;
+
 // REPLACE WITH YOUR NETWORK CREDENTIALS
 const char* ssid="helix_88";
 const char* password="maison88-2020";
@@ -30,6 +33,7 @@ const char* password="maison88-2020";
 const char* PARAM_NOMAQUARIUM = "nomAquarium";
 const char* PARAM_TEMPMIN = "tempMin";
 const char* PARAM_TEMPMAX = "tempMax";
+const char* PARAM_FREQPOMPE = "freqPompe";
 
 // HTML web page to handle 3 input fields (inputString, inputInt, inputFloat)
 const char index_html[] PROGMEM = R"rawliteral(
@@ -70,6 +74,29 @@ const char index_html[] PROGMEM = R"rawliteral(
             </form>
             <form action="/get" target="hidden-form" style="display: flex;">
               Temperature max : %tempMax% °C :<input class='w3-input w3-round-large' type='number' name="tempMax" style="width: 500px; margin: auto;">
+              <button onclick="submitMessage()" type="submit" value="Submit" class='w3-btn w3-white w3-border w3-round-large'>Sauvegarder</button>
+            </form>
+          </div>
+        </main>
+        <main class="bas w3-light-grey" style="width: 1920px; height: 350px;">
+          <div style="width: 900px; text-align: center; margin: auto;">
+            <h1>Pompe :</h1>
+            <form action="/get" target="hidden-form" style="display: flex;">
+              Frequence de la pompe : %freqPompe% °C :<select class="w3-select" id="freqPompe" name="freqPompe">
+                  <option value="" disabled selected>Choose your option</option>
+                  <option value="60000">1min</option>
+                  <option value="120000">2min</option>
+                  <option value="300000">5min</option>
+                  </select>
+              <button onclick="submitMessage()" type="submit" value="Submit" class='w3-btn w3-white w3-border w3-round-large'>Sauvegarder</button>
+            </form>
+            <form action="/get" target="hidden-form" style="display: flex;">
+              Temps de fonctionnement : %tempPompe% °C :<select class="w3-select" id="tempPompe" name="tempPompe">
+                  <option value="" disabled selected>Choose your option</option>
+                  <option value="60000">1min</option>
+                  <option value="120000">2min</option>
+                  <option value="300000">5min</option>
+                  </select>
               <button onclick="submitMessage()" type="submit" value="Submit" class='w3-btn w3-white w3-border w3-round-large'>Sauvegarder</button>
             </form>
           </div>
@@ -125,6 +152,9 @@ String processor(const String& var){
   else if(var == "tempMax"){
     return readFile(SPIFFS, "/tempMax.txt");
   }
+  else if(var == "freqPompe"){
+    return readFile(SPIFFS, "/freqPompe.txt");
+  }
   return String();
 }
 
@@ -167,12 +197,17 @@ void setup() {
       inputMessage = request->getParam(PARAM_TEMPMAX)->value();
       writeFile(SPIFFS, "/tempMax.txt", inputMessage.c_str());
     }
+    else if (request->hasParam(PARAM_FREQPOMPE)) {
+      inputMessage = request->getParam(PARAM_FREQPOMPE)->value();
+      writeFile(SPIFFS, "/freqPompe.txt", inputMessage.c_str());
+    }
     else {
       inputMessage = "No message sent";
     }
     Serial.println(inputMessage);
     request->send(200, "text/text", inputMessage);
   });
+  pinMode(ledChauffage, OUTPUT);
   server.onNotFound(notFound);
   server.begin();
 }
@@ -182,8 +217,30 @@ double getTemperature()
   sensors.requestTemperatures();
   double temperatureActuelle = sensors.getTempCByIndex(0);
   return temperatureActuelle;
-
   delay(1000);
+}
+
+void chauffage()
+{
+  int tempMin = readFile(SPIFFS, "/tempMin.txt").toInt();
+  int tempMax = readFile(SPIFFS, "/tempMax.txt").toInt();
+  double temperatureActuelle = getTemperature();
+  int chauffage;
+
+  if(temperatureActuelle<=tempMin)
+    {
+      digitalWrite(ledChauffage,HIGH);
+      chauffage = 1;
+    }
+  else if (temperatureActuelle<=tempMax && chauffage == 1)
+  { 
+    digitalWrite(ledChauffage,HIGH);
+  }
+  else if(temperatureActuelle>=tempMax)
+    {
+      digitalWrite(ledChauffage,LOW);
+      chauffage = 0;
+    }
 }
 
 void Oled()
@@ -220,6 +277,7 @@ void loop() {
   String nomAquarium = readFile(SPIFFS, "/nomAquarium.txt");
   int tempMin = readFile(SPIFFS, "/tempMin.txt").toInt();
   int tempMax = readFile(SPIFFS, "/tempMax.txt").toInt();
+  int freqPompe = readFile(SPIFFS, "/freqPompe.txt").toInt();
   double temperatureActuelle = getTemperature();
   Serial.print("Nom de l'aquarium: ");
   Serial.println(nomAquarium);
@@ -232,6 +290,9 @@ void loop() {
   Serial.print("Temperature Max: ");
   Serial.print(tempMax);
   Serial.println("°C");
+  Serial.print("Frequence Pompe: ");
+  Serial.println(freqPompe);
+  chauffage();
   Oled();
   delay(2000);
 }
