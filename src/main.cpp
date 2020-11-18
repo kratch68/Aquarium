@@ -34,6 +34,7 @@ const char* PARAM_NOMAQUARIUM = "nomAquarium";
 const char* PARAM_TEMPMIN = "tempMin";
 const char* PARAM_TEMPMAX = "tempMax";
 const char* PARAM_FREQPOMPE = "freqPompe";
+const char* PARAM_TempsPompe = "tempPompe";
 
 // HTML web page to handle 3 input fields (inputString, inputInt, inputFloat)
 const char index_html[] PROGMEM = R"rawliteral(
@@ -155,6 +156,9 @@ String processor(const String& var){
   else if(var == "freqPompe"){
     return readFile(SPIFFS, "/freqPompe.txt");
   }
+  else if(var == "tempPompe"){
+    return readFile(SPIFFS, "/tempPompe.txt");
+  }
   return String();
 }
 
@@ -200,6 +204,10 @@ void setup() {
     else if (request->hasParam(PARAM_FREQPOMPE)) {
       inputMessage = request->getParam(PARAM_FREQPOMPE)->value();
       writeFile(SPIFFS, "/freqPompe.txt", inputMessage.c_str());
+    }
+    else if (request->hasParam(PARAM_TempsPompe)) {
+      inputMessage = request->getParam(PARAM_TempsPompe)->value();
+      writeFile(SPIFFS, "/tempPompe.txt", inputMessage.c_str());
     }
     else {
       inputMessage = "No message sent";
@@ -278,6 +286,7 @@ void loop() {
   int tempMin = readFile(SPIFFS, "/tempMin.txt").toInt();
   int tempMax = readFile(SPIFFS, "/tempMax.txt").toInt();
   int freqPompe = readFile(SPIFFS, "/freqPompe.txt").toInt();
+  int tempPompe = readFile(SPIFFS, "/tempPompe.txt").toInt();
   double temperatureActuelle = getTemperature();
   Serial.print("Nom de l'aquarium: ");
   Serial.println(nomAquarium);
@@ -292,6 +301,8 @@ void loop() {
   Serial.println("°C");
   Serial.print("Frequence Pompe: ");
   Serial.println(freqPompe);
+  Serial.print("Temps Pompe: ");
+  Serial.println(tempPompe);
   chauffage();
   Oled();
   delay(2000);
