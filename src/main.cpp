@@ -10,6 +10,7 @@
 #include <Wire.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <time.h>
 
 
 AsyncWebServer server(80);
@@ -22,8 +23,12 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 OneWire oneWire(WATER_TEMP_PIN); 
 DallasTemperature sensors(&oneWire);
 
+time_t now;
+
 //Led sur la pin 2 de l'esp
 const int ledChauffage = 2;
+
+const int pompe = 13;
 
 // REPLACE WITH YOUR NETWORK CREDENTIALS
 const char* ssid="helix_88";
@@ -83,20 +88,20 @@ const char index_html[] PROGMEM = R"rawliteral(
           <div style="width: 900px; text-align: center; margin: auto;">
             <h1>Pompe :</h1>
             <form action="/get" target="hidden-form" style="display: flex;">
-              Frequence de la pompe : %freqPompe% °C :<select class="w3-select" id="freqPompe" name="freqPompe">
+              Frequence de la pompe : %freqPompe% :<select class="w3-select" id="freqPompe" name="freqPompe">
                   <option value="" disabled selected>Choose your option</option>
-                  <option value="60000">1min</option>
-                  <option value="120000">2min</option>
-                  <option value="300000">5min</option>
+                  <option value="1">1min</option>
+                  <option value="2">2min</option>
+                  <option value="5">5min</option>
                   </select>
               <button onclick="submitMessage()" type="submit" value="Submit" class='w3-btn w3-white w3-border w3-round-large'>Sauvegarder</button>
             </form>
             <form action="/get" target="hidden-form" style="display: flex;">
-              Temps de fonctionnement : %tempPompe% °C :<select class="w3-select" id="tempPompe" name="tempPompe">
+              Temps de fonctionnement : %tempPompe% :<select class="w3-select" id="tempPompe" name="tempPompe">
                   <option value="" disabled selected>Choose your option</option>
-                  <option value="60000">1min</option>
-                  <option value="120000">2min</option>
-                  <option value="300000">5min</option>
+                  <option value="1">1min</option>
+                  <option value="2">2min</option>
+                  <option value="5">5min</option>
                   </select>
               <button onclick="submitMessage()" type="submit" value="Submit" class='w3-btn w3-white w3-border w3-round-large'>Sauvegarder</button>
             </form>
@@ -164,7 +169,6 @@ String processor(const String& var){
 
 void setup() {
   Serial.begin(115200);
-  // Initialize SPIFFS
     if(!SPIFFS.begin(true)){
       Serial.println("An Error has occurred while mounting SPIFFS");
       return;
@@ -216,6 +220,7 @@ void setup() {
     request->send(200, "text/text", inputMessage);
   });
   pinMode(ledChauffage, OUTPUT);
+  pinMode(pompe, OUTPUT);
   server.onNotFound(notFound);
   server.begin();
 }
@@ -262,6 +267,8 @@ void Oled()
   String nomAquarium = readFile(SPIFFS, "/nomAquarium.txt");
   int tempMin = readFile(SPIFFS, "/tempMin.txt").toInt();
   int tempMax = readFile(SPIFFS, "/tempMax.txt").toInt();
+  int freqPompe = readFile(SPIFFS, "/freqPompe.txt").toInt();
+  int tempPompe = readFile(SPIFFS, "/tempPompe.txt").toInt();
   double temperatureActuelle = getTemperature();
 
   delay(2000);
@@ -277,8 +284,44 @@ void Oled()
   display.print("Min: ");
   display.print(tempMin);
   display.print("   Max: ");
-  display.print(tempMax);
+  display.println(tempMax);
+  display.println("Pompe: ");
+  display.print("Frequence: ");
+  display.println(freqPompe);
+  display.print("Temps: ");
+  display.println(tempPompe);
   display.display();
+}
+
+int obtenirPompeDuree()
+{
+  int tempPompe = readFile(SPIFFS, "/tempPompe.txt").toInt();
+  return tempPompe;
+}
+
+int obtenirPompeFreq()
+{
+  int freqPompe = readFile(SPIFFS, "/freqPompe.txt").toInt();
+  return freqPompe;
+}
+
+
+
+// Vérifie si la pompe est en opération/fermée
+void verifierEtatPompe()
+{
+  if (digitalRead(pompe) == LOW){
+      if((time(&now) % (obtenirPompeDuree() * 60)) == 0)
+          {
+            digitalWrite(pompe, HIGH);
+            delay(1000);
+          }}
+if (digitalRead(pompe) == HIGH){
+       if((time(&now) % (obtenirPompeFreq() * 60)) == 0)
+          {
+            digitalWrite(pompe, LOW);
+            delay(1000);
+          }}
 }
 
 void loop() {
@@ -305,5 +348,6 @@ void loop() {
   Serial.println(tempPompe);
   chauffage();
   Oled();
-  delay(2000);
+  verifierEtatPompe();
+  delay(250);
 }
