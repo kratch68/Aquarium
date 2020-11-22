@@ -49,19 +49,30 @@ const char index_html[] PROGMEM = R"rawliteral(
 	  <title>ESP Input Form</title>
 	  <meta name="viewport" content="width=device-width, initial-scale=1" charset='UTF-8'/>
 	  <link rel='stylesheet' href='https://www.w3schools.com/w3css/4/w3.css'>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css">
 	  <script>
 		function submitMessage() {
 		  alert("Saved value to ESP SPIFFS");
 		  setTimeout(function(){ document.location.reload(false); }, 500);   
 		}
 	  </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'en'}, 'google_translate_element');
+      }
+    </script>
+  <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 	</head>
 	<header>
         <div class="w3-container w3-light-grey w3-center">
             <h1>Aquarium</h1>
         </div>
+        
     </header>
 	<body>
+        <div id="google_translate_element"></div>
         <main class="haut w3-light-grey" style="width: 1920px; height: 150px;">
             <div style="width: 800px; text-align: center; margin: auto;">
             <h1>Modifier le nom : %nomAquarium% </h1>
@@ -73,7 +84,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         </main>
         <main class="bas w3-light-grey" style="width: 1920px; height: 350px;">
           <div style="width: 900px; text-align: center; margin: auto;">
-            <h1>Temperature : %tempMin% </h1>
+            <h1>Temperature : </h1>
             <form action="/get" target="hidden-form" style="display: flex;">
               Temperature mini : %tempMin% °C :<input class='w3-input w3-round-large' type='number' name="tempMin" style="width: 500px; margin: auto;">
               <button onclick="submitMessage()" type="submit" value="Submit" class='w3-btn w3-white w3-border w3-round-large'>Sauvegarder</button>
@@ -84,11 +95,11 @@ const char index_html[] PROGMEM = R"rawliteral(
             </form>
           </div>
         </main>
-        <main class="bas w3-light-grey" style="width: 1920px; height: 350px;">
-          <div style="width: 900px; text-align: center; margin: auto;">
+        <main class="bas w3-light-grey" style="width: 1920px; height: 250px;">
+          <div style="width: 750px; text-align: center; margin: auto;">
             <h1>Pompe :</h1>
             <form action="/get" target="hidden-form" style="display: flex;">
-              Frequence de la pompe : %freqPompe% :<select class="w3-select" id="freqPompe" name="freqPompe">
+              Frequence de la pompe : %freqPompe% min :<select class="w3-select w3-round-large" id="freqPompe" name="freqPompe" style="width: 300px; margin: auto;">
                   <option value="" disabled selected>Choose your option</option>
                   <option value="1">1min</option>
                   <option value="2">2min</option>
@@ -97,7 +108,7 @@ const char index_html[] PROGMEM = R"rawliteral(
               <button onclick="submitMessage()" type="submit" value="Submit" class='w3-btn w3-white w3-border w3-round-large'>Sauvegarder</button>
             </form>
             <form action="/get" target="hidden-form" style="display: flex;">
-              Temps de fonctionnement : %tempPompe% :<select class="w3-select" id="tempPompe" name="tempPompe">
+              Temps de fonctionnement : %tempPompe% min :<select class="w3-select w3-round-large" id="tempPompe" name="tempPompe" style="width: 300px; margin: auto;">
                   <option value="" disabled selected>Choose your option</option>
                   <option value="1">1min</option>
                   <option value="2">2min</option>
@@ -117,18 +128,18 @@ void notFound(AsyncWebServerRequest *request) {
 }
 
 String readFile(fs::FS &fs, const char * path){
-  Serial.printf("Reading file: %s\r\n", path);
+  //Serial.printf("Reading file: %s\r\n", path);
   File file = fs.open(path, "r");
   if(!file || file.isDirectory()){
     Serial.println("- empty file or failed to open file");
     return String();
   }
-  Serial.println("- read from file:");
+  //Serial.println("- read from file:");
   String fileContent;
   while(file.available()){
     fileContent+=String((char)file.read());
   }
-  Serial.println(fileContent);
+  //Serial.println(fileContent);
   return fileContent;
 }
 
@@ -306,8 +317,6 @@ int obtenirPompeFreq()
 }
 
 
-
-// Vérifie si la pompe est en opération/fermée
 void verifierEtatPompe()
 {
   if (digitalRead(pompe) == LOW){
