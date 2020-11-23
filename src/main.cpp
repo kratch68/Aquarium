@@ -25,23 +25,24 @@ DallasTemperature sensors(&oneWire);
 
 time_t now;
 
-//Led sur la pin 2 de l'esp
+//LED pour Chauffage
 const int ledChauffage = 2;
 
+//Pompe
 const int pompe = 13;
 
-// REPLACE WITH YOUR NETWORK CREDENTIALS
+//Connexion au wifi
 const char* ssid="helix_88";
 const char* password="maison88-2020";
 
-
+//Parametre pour chaque parametre utile a l'application
 const char* PARAM_NOMAQUARIUM = "nomAquarium";
 const char* PARAM_TEMPMIN = "tempMin";
 const char* PARAM_TEMPMAX = "tempMax";
 const char* PARAM_FREQPOMPE = "freqPompe";
 const char* PARAM_TempsPompe = "tempPompe";
 
-// HTML web page to handle 3 input fields (inputString, inputInt, inputFloat)
+//Page WEB en Html
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML>
 <html lang='fr'>
@@ -72,8 +73,8 @@ const char index_html[] PROGMEM = R"rawliteral(
         
     </header>
 	<body>
-        <div id="google_translate_element"></div>
-        <main class="haut w3-light-grey" style="width: 1920px; height: 150px;">
+        <div id="google_translate_element" class=" w3-light-grey"></div>
+        <main class=" w3-light-grey" style="width: 1920px; height: 200px;">
             <div style="width: 800px; text-align: center; margin: auto;">
             <h1>Modifier le nom : %nomAquarium% </h1>
                 <form action="/get" target="hidden-form" style="display: flex;">
@@ -82,7 +83,7 @@ const char index_html[] PROGMEM = R"rawliteral(
                 </form>
             </div>
         </main>
-        <main class="bas w3-light-grey" style="width: 1920px; height: 350px;">
+        <main class=" w3-light-grey" style="width: 1920px; height: 200px;">
           <div style="width: 900px; text-align: center; margin: auto;">
             <h1>Temperature : </h1>
             <form action="/get" target="hidden-form" style="display: flex;">
@@ -100,7 +101,7 @@ const char index_html[] PROGMEM = R"rawliteral(
             <h1>Pompe :</h1>
             <form action="/get" target="hidden-form" style="display: flex;">
               Frequence de la pompe : %freqPompe% min :<select class="w3-select w3-round-large" id="freqPompe" name="freqPompe" style="width: 300px; margin: auto;">
-                  <option value="" disabled selected>Choose your option</option>
+                  <option value="" disabled selected>choisie ton option</option>
                   <option value="1">1min</option>
                   <option value="2">2min</option>
                   <option value="5">5min</option>
@@ -109,7 +110,7 @@ const char index_html[] PROGMEM = R"rawliteral(
             </form>
             <form action="/get" target="hidden-form" style="display: flex;">
               Temps de fonctionnement : %tempPompe% min :<select class="w3-select w3-round-large" id="tempPompe" name="tempPompe" style="width: 300px; margin: auto;">
-                  <option value="" disabled selected>Choose your option</option>
+                  <option value="" disabled selected>choisie ton option</option>
                   <option value="1">1min</option>
                   <option value="2">2min</option>
                   <option value="5">5min</option>
@@ -127,22 +128,21 @@ void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "Not found");
 }
 
+//Function permettant de lire les valeurs dans leur fichier dans le SPIFFS
 String readFile(fs::FS &fs, const char * path){
-  //Serial.printf("Reading file: %s\r\n", path);
   File file = fs.open(path, "r");
   if(!file || file.isDirectory()){
     Serial.println("- empty file or failed to open file");
     return String();
   }
-  //Serial.println("- read from file:");
   String fileContent;
   while(file.available()){
     fileContent+=String((char)file.read());
   }
-  //Serial.println(fileContent);
   return fileContent;
 }
 
+//Function permettant d'ecrire dans les fichiers dans le SPIFFS
 void writeFile(fs::FS &fs, const char * path, const char * message){
   Serial.printf("Writing file: %s\r\n", path);
   File file = fs.open(path, "w");
@@ -157,9 +157,8 @@ void writeFile(fs::FS &fs, const char * path, const char * message){
   }
 }
 
-// Replaces placeholder with stored values
+// Function qui permet de remplacer les holder avec les valeurs
 String processor(const String& var){
-  //Serial.println(var);
   if(var == "nomAquarium"){
     return readFile(SPIFFS, "/nomAquarium.txt");
   }
@@ -185,6 +184,7 @@ void setup() {
       return;
     }
 
+  //Initialisation du WIFI
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
@@ -192,17 +192,17 @@ void setup() {
     return;
   }
   Serial.println();
+  //retourne l'adresse IP
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 
-  // Send web page with input fields to client
+  //Permet d'afficher la page Web
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/html", index_html, processor);
   });
 
-  // Send a GET request to <ESP_IP>/get?inputString=<inputMessage>
+  //Permet de recuperer les valeurs dans les input
   server.on("/get", HTTP_GET, [] (AsyncWebServerRequest *request) {
-    // GET inputString value on <ESP_IP>/get?inputString=<inputMessage>
     String inputMessage;
     if (request->hasParam(PARAM_NOMAQUARIUM)) {
       inputMessage = request->getParam(PARAM_NOMAQUARIUM)->value();
@@ -236,6 +236,7 @@ void setup() {
   server.begin();
 }
 
+//Function qui permet de recuperer la temperature
 double getTemperature()
 {
   sensors.requestTemperatures();
@@ -244,6 +245,7 @@ double getTemperature()
   delay(1000);
 }
 
+//Function qui permet la regulation du chauffage
 void chauffage()
 {
   int tempMin = readFile(SPIFFS, "/tempMin.txt").toInt();
@@ -267,6 +269,7 @@ void chauffage()
     }
 }
 
+//Function qui permet l'affichage des information sur le OLED
 void Oled()
 {
 
@@ -298,35 +301,39 @@ void Oled()
   display.println(tempMax);
   display.println("Pompe: ");
   display.print("Frequence: ");
-  display.println(freqPompe);
+  display.print(freqPompe);
+  display.println(" min");
   display.print("Temps: ");
-  display.println(tempPompe);
+  display.print(tempPompe);
+  display.println(" min");
   display.display();
 }
 
+//Permet d'obtenir la duree de fonctionnement de la pompe
 int obtenirPompeDuree()
 {
   int tempPompe = readFile(SPIFFS, "/tempPompe.txt").toInt();
   return tempPompe;
 }
 
+//permet d'obtenir le temps de frequence de la pompe
 int obtenirPompeFreq()
 {
   int freqPompe = readFile(SPIFFS, "/freqPompe.txt").toInt();
   return freqPompe;
 }
 
-
-void verifierEtatPompe()
+//Permet le fontionnement de la pompe
+void Pompe()
 {
   if (digitalRead(pompe) == LOW){
-      if((time(&now) % (obtenirPompeDuree() * 60)) == 0)
+      if((time(&now) % (obtenirPompeDuree() * 30)) == 0)
           {
             digitalWrite(pompe, HIGH);
             delay(1000);
           }}
 if (digitalRead(pompe) == HIGH){
-       if((time(&now) % (obtenirPompeFreq() * 60)) == 0)
+       if((time(&now) % (obtenirPompeFreq() * 30)) == 0)
           {
             digitalWrite(pompe, LOW);
             delay(1000);
@@ -357,6 +364,6 @@ void loop() {
   Serial.println(tempPompe);
   chauffage();
   Oled();
-  verifierEtatPompe();
+  Pompe();
   delay(250);
 }
