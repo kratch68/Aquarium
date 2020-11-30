@@ -12,17 +12,20 @@
 #include <DallasTemperature.h>
 #include <time.h>
 
-
+//Initialisation du serveur
 AsyncWebServer server(80);
 
+//Initaialisation du Oled
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
+//initialisation de la sonde de temperature
 #define WATER_TEMP_PIN 15
 OneWire oneWire(WATER_TEMP_PIN); 
 DallasTemperature sensors(&oneWire);
 
+//Initialisation du timer
 time_t now;
 
 //LED pour Chauffage
@@ -32,8 +35,8 @@ const int ledChauffage = 2;
 const int pompe = 13;
 
 //Connexion au wifi
-const char* ssid="helix_88";
-const char* password="maison88-2020";
+const char* ssid="Maison 88";
+const char* password="asticot008";
 
 //Parametre pour chaque parametre utile a l'application
 const char* PARAM_NOMAQUARIUM = "nomAquarium";
@@ -272,7 +275,6 @@ void chauffage()
 //Function qui permet l'affichage des information sur le OLED
 void Oled()
 {
-
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
     Serial.println(F("SSD1306 allocation failed"));
     for(;;);
@@ -341,7 +343,8 @@ if (digitalRead(pompe) == HIGH){
 }
 
 void loop() {
-  String nomAquarium = readFile(SPIFFS, "/nomAquarium.txt");
+  //Permet d'afficher les informations dans le moniteur serie
+  /*String nomAquarium = readFile(SPIFFS, "/nomAquarium.txt");
   int tempMin = readFile(SPIFFS, "/tempMin.txt").toInt();
   int tempMax = readFile(SPIFFS, "/tempMax.txt").toInt();
   int freqPompe = readFile(SPIFFS, "/freqPompe.txt").toInt();
@@ -361,7 +364,7 @@ void loop() {
   Serial.print("Frequence Pompe: ");
   Serial.println(freqPompe);
   Serial.print("Temps Pompe: ");
-  Serial.println(tempPompe);
+  Serial.println(tempPompe);*/
   chauffage();
   Oled();
   Pompe();
