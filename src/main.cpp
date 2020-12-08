@@ -1,3 +1,11 @@
+/*
+* TP: Aquarium
+* Nom: main.cpp
+* But: Permet l'execution et le fonctionnement du systeme embarquer de l'aquarium
+* Createur: Cabellic gwenael
+* Date: 08/12/2020
+*/
+
 #include <Arduino.h>
 #include <WiFi.h>
 #include <AsyncTCP.h>
@@ -16,13 +24,13 @@
 AsyncWebServer server(80);
 
 //Initaialisation du Oled
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+#define screen_width 128
+#define screen_height 64
+Adafruit_SSD1306 display(screen_width, screen_height, &Wire, -1);
 
 //initialisation de la sonde de temperature
-#define WATER_TEMP_PIN 15
-OneWire oneWire(WATER_TEMP_PIN); 
+#define water_temp_pin 15
+OneWire oneWire(water_temp_pin); 
 DallasTemperature sensors(&oneWire);
 
 //Initialisation du timer
@@ -35,8 +43,8 @@ const int ledChauffage = 2;
 const int pompe = 13;
 
 //Connexion au wifi
-const char* ssid="Maison 88";
-const char* password="asticot008";
+const char* SSID="maison_88";
+const char* PASSWORD="asticot008";
 
 //Parametre pour chaque parametre utile a l'application
 const char* PARAM_NOMAQUARIUM = "nomAquarium";
@@ -189,7 +197,7 @@ void setup() {
 
   //Initialisation du WIFI
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  WiFi.begin("maison88","asticot008");
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("WiFi Failed!");
     return;
@@ -273,7 +281,7 @@ void chauffage()
 }
 
 //Function qui permet l'affichage des information sur le OLED
-void Oled()
+void oled()
 {
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
     Serial.println(F("SSD1306 allocation failed"));
@@ -326,7 +334,7 @@ int obtenirPompeFreq()
 }
 
 //Permet le fontionnement de la pompe
-void Pompe()
+void fonctionnementPompe()
 {
   if (digitalRead(pompe) == LOW){
       if((time(&now) % (obtenirPompeDuree() * 30)) == 0)
@@ -366,7 +374,7 @@ void loop() {
   Serial.print("Temps Pompe: ");
   Serial.println(tempPompe);*/
   chauffage();
-  Oled();
-  Pompe();
+  oled();
+  fonctionnementPompe();
   delay(250);
 }
